@@ -1,0 +1,30 @@
+________________
+________________
+gio: file:///home/almat/%D0%94%D0%BE%D0%BA%D1%83%D0%BC%D0%B5%D0%BD%D1%82%D1%8B/Kursach/kursovoy-os-master/system/gnome-system-monitor: Error when getting information for file “/home/almat/Документы/Kursach/kursovoy-os-master/system/gnome-system-monitor”: No such file or directory
+________________
+gio: file:///home/almat/%D0%94%D0%BE%D0%BA%D1%83%D0%BC%D0%B5%D0%BD%D1%82%D1%8B/Kursach/kursovoy-os-master/system/gnome-system-monitor: Error when getting information for file “/home/almat/Документы/Kursach/kursovoy-os-master/system/gnome-system-monitor”: No such file or directory
+________________
+gio: file:///home/almat/%D0%94%D0%BE%D0%BA%D1%83%D0%BC%D0%B5%D0%BD%D1%82%D1%8B/Kursach/kursovoy-os-master/system/gnome-calculator: Error when getting information for file “/home/almat/Документы/Kursach/kursovoy-os-master/system/gnome-calculator”: No such file or directory
+________________
+gio: file:///home/almat/%D0%94%D0%BE%D0%BA%D1%83%D0%BC%D0%B5%D0%BD%D1%82%D1%8B/Kursach/kursovoy-os-master/system/gnome-terminal: Error when getting information for file “/home/almat/Документы/Kursach/kursovoy-os-master/system/gnome-terminal”: No such file or directory
+________________
+________________
+________________
+	This is File Manager!!!
+________________
+	This is File Manager!!!
+________________
+________________
+________________
+________________
+________________
+[3287] Warning: Network error: [ QNetworkReply::RemoteHostClosedError ] "Failed to connect to server. Check your network connection and try again."
+[3287] Warning: Failed to connect to server. Check your network connection and try again.
+________________
+________________
+________________
+________________
+[100] Warning: Network error: [ QNetworkReply::RemoteHostClosedError ] "Failed to connect to server. Check your network connection and try again."
+[100] Warning: Failed to connect to server. Check your network connection and try again.
+________________
+________________
