@@ -1,5 +1,0 @@
-/home/almat/Документы/Kursach/kursovoy-os-master
-/home/almat/Документы/Kursach/kursovoy-os-master/home
-/home/almat/Документы/Kursach/kursovoy-os-master/home/documents
-/home/almat/Документы/Kursach/kursovoy-os-master/home/documents
-/home/almat/Документы/Kursach/kursovoy-os-master/home/documents/bin

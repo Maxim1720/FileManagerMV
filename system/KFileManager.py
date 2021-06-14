@@ -9,7 +9,10 @@ import os
 import errno
 import subprocess
 import tempfile
+from typing import Iterable
 
+import datetime
+import pickle
 import psutil
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -19,12 +22,10 @@ import shutil
 import subprocess
 import tkinter
 
-from typing import List
+# from packages.NewProc import *
+# from packages.SaveToFile import *
 
-from packages.NewProc import *
-from packages.SaveToFile import *
-
-sys.getdefaultencoding()
+# sys.getdefaultencoding()
 
 # todo: 1) окно с процессами: а)вывод, б) наблюдатель = 2 процесса отдельных
 # todo: 2) добавление процессов в файл
@@ -74,9 +75,6 @@ class myWindow(QMainWindow):
         self.copyListNew = ""
 
         self.createActions()
-
-        # self.clear_files_data()
-        clear_all_files()
 
         self.tBar = self.addToolBar("Tools")
         self.tBar.setContextMenuPolicy(Qt.PreventContextMenu)
@@ -168,15 +166,27 @@ class myWindow(QMainWindow):
         self.getRowCount()
         self.treeview.setCurrentIndex(self.dirModel.index(self.root))
 
+
+        # очишаем лог-файлы, параметром должен быть массив
+        self.clear_files_data(['./log/log_visited.txt'])
+        self.memcache = '.memcache.py'
         self.processesPID = []
+        self.processes_by_filemanager = list()
+        self.share_memory()
+        # clear_all_files()
+        # save_opened_dir(path)
 
-        save_opened_dir(path)
-
-    def saveProcessesDataToFile(self, path: str, pid: int):
-        f = open_file_as_process(self.pathToSaveProcessesData, "a")
+    def saveProcessesDataToList(self, path: str, pid: int, name: str):
         proc = psutil.Process(pid)
         _datetime = datetime.datetime.fromtimestamp(proc.create_time()).strftime("%Y-%m-%d %H:%M:%S")
-        f.write("\n%s|%s" % (proc.name(), _datetime))
+        _line = (f'{pid}', f'{_datetime}', f'{name}', f'{path}')
+        print(_line)
+        self.processesPID.append(_line)
+        self.share_memory()
+
+    def share_memory(self):
+        with open(self.memcache, 'wb') as output:
+            pickle.dump(self.processesPID, output, pickle.HIGHEST_PROTOCOL)
 
     def getRowCount(self):
         count = 0
@@ -185,6 +195,11 @@ class myWindow(QMainWindow):
         count = len(path.entryList(QDir.Files))
         self.statusBar().showMessage("%s %s" % (count, "Files"), 0)
         return count
+
+    def clear_files_data(self, paths: Iterable):
+        for path in paths:
+            with open(path, 'w') as f:
+                pass
 
     def closeEvent(self, e):
         print("writing settings ...\nGoodbye ...")
@@ -386,112 +401,74 @@ class myWindow(QMainWindow):
         self.setWindowTitle(path)
         self.getRowCount()
 
-    def runProcess(self, args):
+    # def runProcess(self, args):
 
-        with tempfile.TemporaryFile() as tempf:
-            proc = subprocess.Popen(["file " + args], stdout=tempf, stderr=tempf, shell=True)
-            proc.wait()
-            tempf.seek(0)
-            out: str = tempf.read().decode()
+    #     with tempfile.TemporaryFile() as tempf:
+    #         proc = subprocess.Popen(["file " + args], stdout=tempf, stderr=tempf, shell=True)
+    #         proc.wait()
+    #         tempf.seek(0)
+    #         out: str = tempf.read().decode()
 
-        print(out.split(' ')[1])
+    #     print(out.split(' ')[1])
 
-        if 'data\n' == out.split(" ")[1]:
-            self.infobox("Невозможно открыть: отсутствует программа для выполнения")
-            proc.terminate()
-            return -1
+    #     if 'data\n' == out.split(" ")[1]:
+    #         self.infobox("Невозможно открыть: отсутствует программа для выполнения")
+    #         proc.terminate()
+    #         return -1
 
-        outputSaveFile = open(pathToSaveProcessesOutput, "a")
+    #     outputSaveFile = open(pathToSaveProcessesOutput, "a")
 
-        if 'ELF' in out:
-            # self.runProcess(file)
-            proc = subprocess.Popen([args], shell=True, stderr=outputSaveFile, stdout=outputSaveFile)
-        else:
-            proc = subprocess.Popen(["xdg-open " + f'"{args}"'], shell=True, stdout=outputSaveFile, 
-                                    stderr=outputSaveFile)
-
-
-
-        #new_proc = QProcess(self.process)
-        #new_proc.start(args)
-        #new_proc.startDetached(args)
-        #self.process.children().append(new_proc)
+    #     if 'ELF' in out:
+    #         # self.runProcess(file)
+    #         proc = subprocess.Popen([args], shell=True, stderr=outputSaveFile, stdout=outputSaveFile)
+    #     else:
+    #         proc = subprocess.Popen(["xdg-open " + f'"{args}"'], shell=True, stdout=outputSaveFile, 
+    #                                 stderr=outputSaveFile)
 
 
-        outputSaveFile.write("________________\n")
-        outputSaveFile.close()
 
-       # return new_proc.pid
-      #  return self.process.pid()
-        return proc.pid
+    #     #new_proc = QProcess(self.process)
+    #     #new_proc.start(args)
+    #     #new_proc.startDetached(args)
+    #     #self.process.children().append(new_proc)
+
+
+    #     outputSaveFile.write("________________\n")
+    #     outputSaveFile.close()
+
+    #    # return new_proc.pid
+    #   #  return self.process.pid()
+    #     return proc.pid
 
     def openFile(self):
-        self.open_file2()
-        #save_opened_process_data(self.open_file2())
-        return 0
-        """if self.listview.hasFocus():
-            index = self.listview.selectionModel().currentIndex()
-            path = self.fileModel.fileInfo(index).absoluteFilePath()
-
-            self.copyFile()
-            proc_pid: int
-            for file in self.copyList:
-                pid = open_file_as_process(file)
-                if pid == -1:
-                    self.infobox("Нет подходящего приложения для открытия данного файла")
-                    return
-                # save_opened_process_data(pid)
-                # self._open(files)
-                return 0
-
-                if self.checkIsApplication(path):
-                    # todo:1.Запуск дочернего процесса
-                    add_to_file(self.pathToSaveProcessesData, open_new_process(files))
-                else:
-                    self.open_file_qdesktopServices(files)"""
-
-    # @property
-    def open_file2(self):
         if self.listview.hasFocus():
             index = self.listview.selectionModel().currentIndex()
             path = self.fileModel.fileInfo(index).absoluteFilePath()
-            self.copyFile()
-            proc_pid: int
-            prcs = list()
-            i = 0
-            for file in self.copyList:
+            proc = subprocess.Popen(["xdg-open", path], shell=False)
+            self.saveProcessesDataToList(path, proc.pid, "shell xdg")
 
-                prcs.append(self.runProcess(file))
-                return prcs
-                with tempfile.TemporaryFile() as tempf:
-                    proc = subprocess.Popen(['file', file], stdout=tempf)
-                    proc.wait()
-                    tempf.seek(0)
-                    out: str = tempf.read()
+    # @property
+    def open_file2(self):
+        # все работает, но имя всегда будет /usr/bin/xdg-open
+        if self.listview.hasFocus():
+            index = self.listview.selectionModel().currentIndex()
+            path = self.fileModel.fileInfo(index).absoluteFilePath()
+            proc = subprocess.Popen(["xdg-open", path], shell=False)
+            _pid = proc.pid
+            print(_pid)
 
-                print(out.split(b' ')[1])
+        def get_pname(id):
+            p = subprocess.Popen(["ps -o cmd= {}".format(id)], stdout=subprocess.PIPE, shell=True)
+            return str(p.communicate()[0])
+        name = get_pname(_pid)
+        print(name)
 
-                if b'data\n' == out.split(b" ")[1]:
-                    self.infobox("Невозможно открыть: отсутствует программа для выполнения")
-                    continue
-
-                if b'ELF' in out:
-                    # self.runProcess(file)
-                    proc = subprocess.Popen([file], shell=True, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
-                else:
-                    op = ["xdg-open " + f'"{file}"']
-                    # self.runProcess(op)   #xdg-open " + f'"{file}"')
-                    proc = subprocess.Popen(["xdg-open " + f'"{file}"'], shell=True)
-                prcs.append(proc.pid)
-                print(prcs[len(prcs) - 1])
-
-            return prcs
 
     def openFileText(self):
         if self.listview.selectionModel().hasSelection():
             index = self.listview.selectionModel().currentIndex()
             path = self.fileModel.fileInfo(index).absoluteFilePath()
-            subprocess.Popen(["code", path], stdin=open_file_as_process(os.devnull, 'r'))
+            subprocess.Popen(["code", path], shell=False)
 
     def list_doubleClicked(self):
 
@@ -573,9 +550,9 @@ class myWindow(QMainWindow):
         self.treeview.setFocus()
 
     def getProcessList(self):
-        import procform
+        import form
         self.processes = QWidget()
-        ui = procform.ProcWindow(self.processes, os.getpid())
+        ui = form.ProcWindow(self.processes, self.memcache)
         self.processes.show()
 
     def toggleRemovables(self):
@@ -585,18 +562,15 @@ class myWindow(QMainWindow):
 
     def showQuests(self):
         try:
-            # subprocess.run(['partitionmanager'])
-            self.runProcess('partitionmanager')
+            proc = subprocess.Popen(["gnome-disks"], shell=False)
+            self.saveProcessesDataToList("", proc.pid, "gnome-disks")  
         except:
-            try:
-                self.runProcess('gnome-disks')
-            except:
-                print('disk-utility not opened')
+            print('disk-utility not opened')
 
     def callTerminal(self):
         try:
-            # subprocess.run(['gnome-terminal'])
-            self.runProcess('gnome-terminal')
+            proc = subprocess.Popen(["gnome-terminal"], shell=False)
+            self.saveProcessesDataToList("", proc.pid, "gnome-terminal")  
         except:
             try:
                 subprocess.run(['console'])
@@ -605,26 +579,17 @@ class myWindow(QMainWindow):
 
     def callCalculator(self):
         try:
-            self.runProcess('gnome-calculator')
-            # proc = psutil.Popen(['gnome-calculator'])
-
+            proc = subprocess.Popen(["gnome-calculator"], shell=False)
+            self.saveProcessesDataToList("", proc.pid, "gnome-calculator")            
         except:
-            try:
-                self.runProcess('calculator')
-                # proc = psutil.Popen(['calculator'])
-            except:
-                print("calculator didn't opened")
+            print("calculator didn't opened")
 
     def callSysMonitor(self):
         try:
-            # proc = psutil.Popen(['gnome-system-monitor'])
-            self.runProcess('gnome-system-monitor')
-            # subprocess.run(['gnome-system-monitor'])
+            proc = subprocess.Popen(["gnome-system-monitor"], shell=False)
+            self.saveProcessesDataToList("", proc.pid, "gnome-system-monitor")            
         except:
-            try:
-                proc = psutil.Popen([''])
-            except:
-                print("System monitor didn't opened")
+            print("System monitor didn't opened")
 
     def infobox(self, message):
         title = "QFilemager"
