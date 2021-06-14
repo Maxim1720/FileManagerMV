@@ -180,7 +180,7 @@ class myWindow(QMainWindow):
         proc = psutil.Process(pid)
         _datetime = datetime.datetime.fromtimestamp(proc.create_time()).strftime("%Y-%m-%d %H:%M:%S")
         _line = (f'{pid}', f'{_datetime}', f'{name}', f'{path}')
-        print(_line)
+        # print(_line)
         self.processesPID.append(_line)
         self.share_memory()
 
@@ -494,7 +494,7 @@ class myWindow(QMainWindow):
             self.treeview.setCurrentIndex(self.dirModel.index(path))
             self.treeview.setFocus()
             self.setWindowTitle(path)
-            save_opened_dir(path)
+            # save_opened_dir(path)
             # self.savePathToFile(path)
 
     def goBack(self):
@@ -506,7 +506,7 @@ class myWindow(QMainWindow):
         index = self.treeview.selectionModel().currentIndex()
         path = self.dirModel.fileInfo(index).path()
 
-        save_opened_dir(path)
+        # save_opened_dir(path)
 
         if path.find(self.root) >= 0:
             self.treeview.setCurrentIndex(self.dirModel.index(path))
