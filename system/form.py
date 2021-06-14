@@ -27,12 +27,19 @@ class Ui_Form(object):
         self.logButtonFrame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.logButtonFrame.setFrameShadow(QtWidgets.QFrame.Raised)
         self.logButtonFrame.setObjectName("logButtonFrame")
-        self.gridLayout_2 = QtWidgets.QGridLayout(self.logButtonFrame)
-        self.gridLayout_2.setObjectName("gridLayout_2")
+        self.horizontalLayout = QtWidgets.QHBoxLayout(self.logButtonFrame)
+        self.horizontalLayout.setObjectName("horizontalLayout")
         self.pushButton = QtWidgets.QPushButton(self.logButtonFrame)
+        self.pushButton.setMinimumSize(QtCore.QSize(150, 0))
         self.pushButton.setMaximumSize(QtCore.QSize(150, 16777215))
         self.pushButton.setObjectName("pushButton")
-        self.gridLayout_2.addWidget(self.pushButton, 0, 0, 1, 1)
+        self.horizontalLayout.addWidget(self.pushButton)
+        self.killButton = QtWidgets.QPushButton(self.logButtonFrame)
+        self.killButton.setMinimumSize(QtCore.QSize(150, 0))
+        self.killButton.setObjectName("killButton")
+        self.horizontalLayout.addWidget(self.killButton)
+        spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        self.horizontalLayout.addItem(spacerItem)
         self.gridLayout.addWidget(self.logButtonFrame, 2, 0, 1, 1)
         self.tableWidget = QtWidgets.QTableWidget(Form)
         self.tableWidget.setMinimumSize(QtCore.QSize(432, 0))
@@ -48,7 +55,7 @@ class Ui_Form(object):
         item.setTextAlignment(QtCore.Qt.AlignCenter)
         self.tableWidget.setHorizontalHeaderItem(0, item)
         item = QtWidgets.QTableWidgetItem()
-        item.setText("Created On")
+        item.setText("Created on")
         item.setTextAlignment(QtCore.Qt.AlignCenter)
         self.tableWidget.setHorizontalHeaderItem(1, item)
         item = QtWidgets.QTableWidgetItem()
@@ -70,6 +77,7 @@ class Ui_Form(object):
         _translate = QtCore.QCoreApplication.translate
         Form.setWindowTitle(_translate("Form", "OS FileManager Processes"))
         self.pushButton.setText(_translate("Form", "Save to log file"))
+        self.killButton.setText(_translate("Form", "Kill Process"))        
         item = self.tableWidget.horizontalHeaderItem(2)
         item.setText(_translate("Form", "Name"))
         item = self.tableWidget.horizontalHeaderItem(3)
@@ -90,6 +98,7 @@ class ProcWindow(Ui_Form):
         self.processes_data = list()
         self.tableWidget.clearContents()            
         self.pushButton.clicked.connect(self.save_button_onclick)
+        self.killButton.clicked.connect(self.kill_button_onclick)
 
         if memcache:
             self.memory_thread = threading.Thread(target=self.access_memory)
@@ -107,13 +116,17 @@ class ProcWindow(Ui_Form):
             if i < j:
                 for elem in self.processes_data[i:]:
                     self.processes_memory.append(elem)
-                    self.input_elem_to_table(elem)
+                    try:
+                        self.rp = self.tableWidget.rowCount()
+                    except:
+                        self.rp += 1
+                    self.input_elem_to_table(elem, self.rp)
             time.sleep(1)
 
-    def input_elem_to_table(self, elem):
-        rowPosition = self.tableWidget.rowCount()
+    def input_elem_to_table(self, elem, rowPosition):
         self.tableWidget.insertRow(rowPosition)
         e1, e2, e3, e4 = elem
+
         self.tableWidget.setItem(rowPosition , 0, QtWidgets.QTableWidgetItem(f'{e1}'))
         self.tableWidget.setItem(rowPosition , 1, QtWidgets.QTableWidgetItem(f'{e2}'))
         self.tableWidget.setItem(rowPosition , 2, QtWidgets.QTableWidgetItem(f'{e3}'))
@@ -124,6 +137,15 @@ class ProcWindow(Ui_Form):
             for e in self.processes_memory:
                 print(*e, sep=', ', file=f)
 
+    def kill_button_onclick(self):
+        item = self.tableWidget.selectedItems()
+        pid = item[0].text()
+        # subprocess.Popen(["sudo", "kill", "-9", f"{pid}"], shell=False)
+        try:
+            p = psutil.Process(int(pid))
+            p.terminate()
+        except:
+            pass
 
 
 if __name__ == "__main__":
