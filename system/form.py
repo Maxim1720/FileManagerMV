@@ -100,6 +100,8 @@ class ProcWindow(Ui_Form):
         self.pushButton.clicked.connect(self.save_button_onclick)
         self.killButton.clicked.connect(self.kill_button_onclick)
 
+        self.rpos = 0
+
         if memcache:
             self.memory_thread = threading.Thread(target=self.access_memory)
             self.memory_thread.setDaemon(True)
@@ -116,21 +118,23 @@ class ProcWindow(Ui_Form):
             if i < j:
                 for elem in self.processes_data[i:]:
                     self.processes_memory.append(elem)
-                    try:
-                        self.rp = self.tableWidget.rowCount()
-                    except:
-                        self.rp += 1
-                    self.input_elem_to_table(elem, self.rp)
+                    self.input_elem_to_table(elem)
             time.sleep(1)
 
-    def input_elem_to_table(self, elem, rowPosition):
-        self.tableWidget.insertRow(rowPosition)
+    def input_elem_to_table(self, elem):
+        self.rpos = self.tableWidget.rowCount()
+        
+        try:
+            self.tableWidget.insertRow(self.rpos)
+        except:
+            pass        
+        
         e1, e2, e3, e4 = elem
 
-        self.tableWidget.setItem(rowPosition , 0, QtWidgets.QTableWidgetItem(f'{e1}'))
-        self.tableWidget.setItem(rowPosition , 1, QtWidgets.QTableWidgetItem(f'{e2}'))
-        self.tableWidget.setItem(rowPosition , 2, QtWidgets.QTableWidgetItem(f'{e3}'))
-        self.tableWidget.setItem(rowPosition , 3, QtWidgets.QTableWidgetItem(f'{e4}'))
+        self.tableWidget.setItem(self.rpos , 0, QtWidgets.QTableWidgetItem(f'{e1}'))
+        self.tableWidget.setItem(self.rpos , 1, QtWidgets.QTableWidgetItem(f'{e2}'))
+        self.tableWidget.setItem(self.rpos , 2, QtWidgets.QTableWidgetItem(f'{e3}'))
+        self.tableWidget.setItem(self.rpos , 3, QtWidgets.QTableWidgetItem(f'{e4}'))
 
     def save_button_onclick(self):
         with open(os.getcwd() + '/' + self.logfileLineEdit.text(), 'w') as f:

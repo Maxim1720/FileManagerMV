@@ -9,6 +9,7 @@ import os
 import errno
 import subprocess
 import tempfile
+import time
 from typing import Iterable
 
 import datetime
@@ -33,7 +34,7 @@ import tkinter
 class myWindow(QMainWindow):
     def __init__(self):
         super(myWindow, self).__init__()
-        print(os.getpid())
+
         self.setStyleSheet(mystylesheet(self))
         self.setWindowTitle("File manager")
         self.setWindowIcon(QIcon.fromTheme("system- file-manager"))
@@ -188,6 +189,17 @@ class myWindow(QMainWindow):
         with open(self.memcache, 'wb') as output:
             pickle.dump(self.processesPID, output, pickle.HIGHEST_PROTOCOL)
 
+    def show_info(self):
+        pass
+
+
+        # def get_pname(id):
+        #     p = subprocess.Popen(["ps -o cmd= {}".format(id)], stdout=subprocess.PIPE, shell=True)
+        #     return str(p.communicate()[0])
+        # name = get_pname(_pid)
+        # print(name)
+
+
     def getRowCount(self):
         count = 0
         index = self.treeview.selectionModel().currentIndex()
@@ -271,7 +283,10 @@ class myWindow(QMainWindow):
             <br>
             18. screen resolution: {screen_width} x {screen_height}
         """
-        self.infosys(title, message)
+        from inter import VideoEdu
+        VideoEdu(root)
+        root.mainloop()
+        # self.infosys(title, message)
 
     def infosys(self, title, message):
         QMessageBox(QMessageBox.Information, title, message, QMessageBox.NoButton, self,
@@ -553,6 +568,7 @@ class myWindow(QMainWindow):
         import form
         self.processes = QWidget()
         ui = form.ProcWindow(self.processes, self.memcache)
+        self.show_info()
         self.processes.show()
 
     def toggleRemovables(self):
@@ -570,12 +586,23 @@ class myWindow(QMainWindow):
     def callTerminal(self):
         try:
             proc = subprocess.Popen(["gnome-terminal"], shell=False)
-            self.saveProcessesDataToList("", proc.pid, "gnome-terminal")  
+            proc = psutil.Process(proc.pid)
+            main_datetime = proc.create_time()
+            time.sleep(0.7)
+            for pr in psutil.process_iter():
+                if  main_datetime < pr.create_time() and pr.name() == "bash":
+                    print( main_datetime - pr.create_time())
+                    self.saveProcessesDataToList("", pr.pid, "bash")
+                    return  
+            self.saveProcessesDataToList("", proc.pid, "gnome-terminal")
         except:
             try:
                 subprocess.run(['console'])
             except:
                 print('terminal not opened')
+
+    def save_bash(seld):
+        pass
 
     def callCalculator(self):
         try:
