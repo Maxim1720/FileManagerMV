@@ -34,31 +34,34 @@ class VideoEdu:
         self.username_label.pack(side=tk.LEFT, padx=10)
 
         self.cpu_percents_label = tk.Label(self.grid_[3][0],
-                                           text=f'cpu persents: ',
+                                           text=f'cpu percents: ',
                                            font=('Courier', '15'))
 
         self.cpu_percents_label.pack(side=tk.LEFT, padx=10)
-        self.cpu_percents_label.after(110, self.update_percents)
 
+        self.cpu_percents_digits = tk.Label(self.grid_[4][0],
+                                           text=f'',
+                                           font=('Courier', '15'))   
+        self.cpu_percents_digits.pack(side=tk.LEFT, padx=10)
+        
         self.configure_main_window()
+
+        self.update_percents()
 
     def update_percents(self):
         percents = psutil.cpu_percent(0, True)
-        self.cpu_percents_label.config(text=f'cpu persents: \n\t\t{percents[0]}\n'
-                                               f'\t\t{percents[1]}\n'
-                                               f'\t\t{percents[2]}\n'
-                                               f'\t\t{percents[3]}\n'
-                                               f'\t\t{percents[4]}\n'
-                                               f'\t\t{percents[5]}\n'
-                                               f'\t\t{percents[6]}\n'
-                                               f'\t\t{percents[7]}')
-        #self.cpu_percents_label.configure(text=)
+        str = ""
+        for cpu in percents:
+            str += (f'{cpu:4.1f}\n')
+        self.cpu_percents_digits.config(text=f'{str}')
+        self.cpu_percents_digits.after(110, self.update_percents)
+
 
     def configure_main_window(self):
         """
         info: main window properties
         """
-        self.master.title('Video Edu App')
+        self.master.title('Kursovoy')
         self.master.resizable(False, False)
 
     def add_grid(self, master, sizex=8, sizey=8):

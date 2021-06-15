@@ -283,7 +283,6 @@ class myWindow(QMainWindow):
                     """
 
         root = tkinter.Tk()
-        root.after(100, messageedit)
         VideoEdu(root)
         root.mainloop()
 
@@ -301,7 +300,7 @@ class myWindow(QMainWindow):
             <br>
             
         """
-        self.infosys(title, message)
+        # self.infosys(title, message)
 
     def infosys(self, title, message):
 

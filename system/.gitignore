@@ -1,2 +1,3 @@
 .vscode/
+.memcache.py
 __pycache__/
