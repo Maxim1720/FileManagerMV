@@ -1,22 +1,70 @@
+import ctypes
+import multiprocessing
 import os
+import threading
 import time
 import tkinter as tk
 from threading import Thread
 
+import posix_ipc
 import psutil
+from PyQt5.QtCore import QSharedMemory, QBuffer, QDataStream, QSystemSemaphore, QThread
 
 
 class VideoEdu:
 
-    def __init__(self, master):
+    def __init__(self, master, window):
+        from multiprocessing import shared_memory as shmemory
         self.master = master
         self.grid_ = self.add_grid(master, 8, 2)
-
+        self.mainwindow = window
         self.path_value = tk.StringVar()
         self.path_value.set(os.getcwd() + '\IMG_0761.MP4')
 
-        import getpass
-        self.username = getpass.getuser()
+        self.username = ""
+        self.cpu_digits = []
+
+        self.username_sem = posix_ipc.Semaphore("user_name_sem")
+
+        def usernameUPD():
+
+            self.username_sem.acquire()
+
+            shmem_list = shmemory.ShareableList(name='user_name')
+            self.username = shmem_list[0]
+            shmem_list.shm.close()
+            #shmem_list.shm.unlink()
+            del shmem_list
+
+            self.username_sem.release()
+
+        curproc = multiprocessing.process.current_process()
+
+        def cpu_persents_set():
+            shmem = QSharedMemory('cpu')
+            shmem.attach()
+            print("inter>update_cpu_digits: ", shmem.errorString())
+            def update():
+                while curproc.is_alive():
+                    shmem.lock()
+#                    c_buf = ctypes.c_wchar_p(shmem.data().__int__())
+#                    if self.cpu_digits:
+#                        self.cpu_digits.append(c_buf.value)
+                    shmem.unlock()
+            t = threading.Thread(target=update)
+            t.daemon = True
+            t.start()
+
+        def updating():
+            while True:
+                usernameUPD()
+                QThread.sleep(1)
+
+        thread = threading.Thread(target=updating)
+        thread.daemon = True
+        thread.start()
+
+
         self.cpu_percents = psutil.cpu_percent(0, True)[:]
 
         self.about_mainInfo = tk.Label(self.grid_[1][0],
@@ -29,33 +77,37 @@ class VideoEdu:
         self.created.pack(side=tk.RIGHT, padx=0)
 
         self.username_label = tk.Label(self.grid_[2][0],
-                                       text=f'username: {self.username}',
-                                       font=('Console', '13'))
+                                       text=f'Username: "{self.username}"',
+                                       font=('Console', '14'))
         self.username_label.pack(side=tk.LEFT, padx=10)
 
-        self.cpu_percents_label = tk.Label(self.grid_[3][0],
+        self.cpu_percents_label = tk.Label(self.grid_[4][0],
                                            text=f'cpu percents: ',
                                            font=('Courier', '15'))
 
         self.cpu_percents_label.pack(side=tk.LEFT, padx=10)
 
         self.cpu_percents_digits = tk.Label(self.grid_[4][0],
-                                           text=f'',
-                                           font=('Courier', '15'))   
+                                            text=f'',
+                                            font=('Courier', '15'))
         self.cpu_percents_digits.pack(side=tk.LEFT, padx=10)
-        
+
         self.configure_main_window()
 
         self.update_percents()
 
+
+    def update_username(self):
+        self.username_label.config(text=f'Username: "{self.username}"')
+        self.username_label.after(110, self.update_username)
+
     def update_percents(self):
-        percents = psutil.cpu_percent(0, True)
+        percents = psutil.cpu_percent(0.5, True)
         str = ""
-        for cpu in percents:
-            str += (f'{cpu:4.1f}\n')
+        for i, cpu in enumerate(percents):
+            str += (f'cpu[{i+1}]={cpu:4.1f}%\n')
         self.cpu_percents_digits.config(text=f'{str}')
         self.cpu_percents_digits.after(110, self.update_percents)
-
 
     def configure_main_window(self):
         """
@@ -84,3 +136,6 @@ if __name__ == "__main__":
     root = tk.Tk()
     im = VideoEdu(root)
     root.mainloop()
+
+
+

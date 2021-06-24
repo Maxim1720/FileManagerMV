@@ -3,41 +3,49 @@
 ############################################
 # Musiev kursovoy project 0.1
 ############################################
-# import gi
+import asyncio
+import ctypes
+import multiprocessing.process
 import sys
 import os
 import errno
 import subprocess
-import tempfile
 import threading
+
 from typing import Iterable
 
 import datetime
 import pickle
+
+import PyQt5.sip
+import posix_ipc
 import psutil
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
-from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtGui import QKeySequence, QCursor, QDesktopServices
+from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QKeySequence, QCursor
 import shutil
 import subprocess
 import tkinter
+import getpass
+from multiprocessing import shared_memory as shmemory
 
-
-# from packages.NewProc import *
-# from packages.SaveToFile import *
-
-# sys.getdefaultencoding()
-
-
-class myWindow(QMainWindow):
+class MainWindow(QMainWindow):
     def __init__(self):
-        super(myWindow, self).__init__()
+        super(MainWindow, self).__init__()
         print(os.getpid())
+
         self.setStyleSheet(mystylesheet(self))
         self.setWindowTitle("File manager")
         self.setWindowIcon(QIcon.fromTheme("system- file-manager"))
         self.process = QProcess()
+
+        self.processes: QWidget
+
+        self.username_sem = posix_ipc.Semaphore("user_name_sem", posix_ipc.O_CREAT, 0o600, 1)
+        self.cpudigits_sem = posix_ipc.Semaphore("cpu_digits_sem", posix_ipc.O_CREAT, 0o600, 1)
+
+        self.username_updating()
 
         self.settings = QSettings("QFileManager", "QFileManager")
         self.clip = QApplication.clipboard()
@@ -58,15 +66,13 @@ class myWindow(QMainWindow):
         hlay = QHBoxLayout()
         hlay.addWidget(self.splitter)
 
-        # what are statements doing here?
         wid = QWidget()
         wid.setLayout(hlay)
         self.createStatusBar()
         self.setCentralWidget(wid)
         self.setGeometry(0, 26, 900, 500)
-        # _________||
 
-        path = QDir.currentPath()  # QDir.rootPath()
+        path = QDir.currentPath()
         path = self.parseRoot(path)
         self.root = path
         self.media = '/media'
@@ -90,11 +96,9 @@ class myWindow(QMainWindow):
         self.tBar.addAction(self.btnVideo)
         self.tBar.addAction(self.btnRemovables)
         self.tBar.addSeparator()
-        # self.tBar.addAction(self.btnBack)
         self.tBar.addAction(self.btnUp)
         self.tBar.addSeparator()
         self.tBar.addAction(self.btnProcesses)
-        # self.tBar.addAction(self.btn)
 
         self.tBar.addAction(self.btnQuests)
         self.tBar.addSeparator()
@@ -168,12 +172,10 @@ class myWindow(QMainWindow):
 
         # очищаем лог-файлы, параметром должен быть массив
         self.clear_files_data(['./log/log_visited.txt'])
-        self.memcache = '.memcache.py'
+        self.shmem_arr = '.memcache.py'
         self.processesPID = []
         self.processes_by_filemanager = list()
         self.share_memory()
-        # clear_all_files()
-        # save_opened_dir(path)
 
     def saveProcessesDataToList(self, path: str, pid: int, name: str):
         proc = psutil.Process(pid)
@@ -184,7 +186,7 @@ class myWindow(QMainWindow):
         self.share_memory()
 
     def share_memory(self):
-        with open(self.memcache, 'wb') as output:
+        with open(self.shmem_arr, 'wb') as output:
             pickle.dump(self.processesPID, output, pickle.HIGHEST_PROTOCOL)
 
     def getRowCount(self):
@@ -202,6 +204,10 @@ class myWindow(QMainWindow):
 
     def closeEvent(self, e):
         print("writing settings ...\nGoodbye ...")
+        try:
+            self.processes.close()
+        except:
+            pass
         self.writeSettings()
 
     def readSettings(self):
@@ -246,74 +252,59 @@ class myWindow(QMainWindow):
         path = path[:path.rfind('/')]
         return path
 
+
+    def username_updating(self):
+        def updating():
+            while True:
+                self.username_send()
+                QThread.sleep(1)
+
+        t = threading.Thread(target=updating)
+        t.daemon = True
+        t.start()
+
+    def username_send(self):
+        self.username = getpass.getuser()
+
+        self.username_sem.acquire()
+
+        try:
+            shmemory.ShareableList([self.username], name='user_name')
+        except:
+            shmemory.ShareableList('user_name').shm.unlink()
+            pass
+
+        self.username_sem.release()
+
+    def cpu_load_percents_send(self):
+        self.cpudigits = psutil.cpu_percent(0, True)
+
+        self.cpudigits_sem.acquire()
+        shmemory.ShareableList(self.cpudigits, name='cpu_digits')
+        self.cpudigits_sem.release()
+
+
+
     def aboutApp(self):
-        from inter import VideoEdu
+        def openAboutForm():
+            from inter import VideoEdu
+            self.helpAction.setEnabled(False)
+            root = tkinter.Tk()
+            VideoEdu(root, self)
+            root.mainloop()
+            self.helpAction.setEnabled(True)
 
-        import datetime
+        m = multiprocessing.Process(target=openAboutForm)
+        m.daemon = True
+        m.start()
 
-        sysinfo = QSysInfo()
-        myMachine = "currentCPU Architecture: " + sysinfo.currentCpuArchitecture() + "<br>" + sysinfo.prettyProductName()
-        myMachine += "<br>" + sysinfo.kernelType() + " " + sysinfo.kernelVersion()
-        title = "about QFileManager"
-        message = """
-                    <span style='color: #3465a4; font-size: 20pt;font-weight: bold;text-align: center;'>
-                    </span></p><center><h3>Kursovoy FileManager<br>0.1a</h3></center>created by  
-                    <a title='Musiev Maxim' href='http://github.com' target='_blank'>Musiev Maxim</a> with PyQt5<br><br>
-                    <span style='color: black; font-size: 9pt;'>©2021 PSUTI<br><br></strong></span></p>
-                        """ + myMachine
-        sharedMemoryArr = psutil.cpu_percent(0, True)
+        print(multiprocessing.process.current_process(), " - current process")
+        print(len(multiprocessing.process.active_children()), " -> children count")
 
-        import getpass
-        username = getpass.getuser()
-
-        def messageedit():
-            message = message = """
-                    <span style='color: #3465a4; font-size: 20pt;font-weight: bold;text-align: center;'>
-                    </span></p><center><h3>Kursovoy FileManager<br>0.1a</h3></center>created by  
-                    <a title='Musiev Maxim' href='http://github.com' target='_blank'>Musiev Maxim</a> with PyQt5<br><br>
-                    <span style='color: black; font-size: 9pt;'>©2021 PSUTI<br><br></strong></span></p>
-                        """ + myMachine
-            message += f"""
-                        <br>
-                        2. username : {username}
-                        <br>
-                        13. cpu percent loading: {psutil.cpu_percent(0,True)} 
-                        <br>
-
-                    """
-
-        root = tkinter.Tk()
-        VideoEdu(root)
-        root.mainloop()
-
-
-        #screen_width = root.winfo_screenwidth()
-        #screen_height = root.winfo_screenheight()
-        tnow = datetime.datetime.now()
-
-
-        message += f"""
-            <br>
-            2. username : {username}
-            <br>
-            13. cpu percent loading: {sharedMemoryArr} 
-            <br>
-            
-        """
-        # self.infosys(title, message)
-
-    def infosys(self, title, message):
-
-        #QMessageBox(QMessageBox.Information, title, message).show()
-        box = QMessageBox(QMessageBox.Information, title, message, QMessageBox.NoButton, self,
-                          Qt.Dialog
-                          | Qt.NoDropShadowWindowHint)
-        box.show()
-
-        ### actions
+        for child in multiprocessing.process.active_children():
+            print(child.name, child.pid)
 
     def createActions(self):
-        self.btnBack = QAction(QIcon.fromTheme("go-previous"), "go back", triggered=self.goBack)
         self.btnUp = QAction(QIcon.fromTheme("go-up"), "go up", triggered=self.goUp)
         self.btnHome = QAction(QIcon.fromTheme("go-home"), "home folder", triggered=self.goHome)
         self.btnMusic = QAction(QIcon.fromTheme("folder-music"), "music folder", triggered=self.goMusic)
@@ -401,11 +392,6 @@ class myWindow(QMainWindow):
         self.hiddenAction.setCheckable(True)
         self.listview.addAction(self.hiddenAction)
 
-        self.goBackAction = QAction(QIcon.fromTheme("go-back"), "go back", triggered=self.goBack)
-        self.goBackAction.setShortcut(QKeySequence(Qt.Key_Backspace))
-        self.goBackAction.setShortcutVisibleInContextMenu(True)
-        self.listview.addAction(self.goBackAction)
-
         self.helpAction = QAction(QIcon.fromTheme("help"), "About", triggered=self.aboutApp)
         self.helpAction.setShortcut(QKeySequence(Qt.Key_F1))
         self.helpAction.setShortcutVisibleInContextMenu(True)
@@ -433,48 +419,19 @@ class myWindow(QMainWindow):
         self.setWindowTitle(path)
         self.getRowCount()
 
-    # def runProcess(self, args):
-
-    #     with tempfile.TemporaryFile() as tempf:
-    #         proc = subprocess.Popen(["file " + args], stdout=tempf, stderr=tempf, shell=True)
-    #         proc.wait()
-    #         tempf.seek(0)
-    #         out: str = tempf.read().decode()
-
-    #     print(out.split(' ')[1])
-
-    #     if 'data\n' == out.split(" ")[1]:
-    #         self.infobox("Невозможно открыть: отсутствует программа для выполнения")
-    #         proc.terminate()
-    #         return -1
-
-    #     outputSaveFile = open(pathToSaveProcessesOutput, "a")
-
-    #     if 'ELF' in out:
-    #         # self.runProcess(file)
-    #         proc = subprocess.Popen([args], shell=True, stderr=outputSaveFile, stdout=outputSaveFile)
-    #     else:
-    #         proc = subprocess.Popen(["xdg-open " + f'"{args}"'], shell=True, stdout=outputSaveFile, 
-    #                                 stderr=outputSaveFile)
-
-    #     #new_proc = QProcess(self.process)
-    #     #new_proc.start(args)
-    #     #new_proc.startDetached(args)
-    #     #self.process.children().append(new_proc)
-
-    #     outputSaveFile.write("________________\n")
-    #     outputSaveFile.close()
-
-    #    # return new_proc.pid
-    #   #  return self.process.pid()
-    #     return proc.pid
-
     def openFile(self):
-        if self.listview.hasFocus():
-            index = self.listview.selectionModel().currentIndex()
-            path = self.fileModel.fileInfo(index).absoluteFilePath()
-            proc = subprocess.Popen(["xdg-open", path], shell=False)
-            self.saveProcessesDataToList(path, proc.pid, "shell xdg")
+        def open():
+            if self.listview.hasFocus():
+                index = self.listview.selectionModel().currentIndex()
+                path = self.fileModel.fileInfo(index).absoluteFilePath()
+                proc = subprocess.Popen(["xdg-open", path], shell=False)
+                self.saveProcessesDataToList(path, proc.pid, "shell xdg")
+
+        m = multiprocessing.Process(target=open)
+        m.daemon = True
+        # m.start()
+        open()
+        print(m.pid)
 
     # @property
     def open_file2(self):
@@ -506,42 +463,27 @@ class myWindow(QMainWindow):
 
         if not self.fileModel.fileInfo(index).isDir():
             self.openFile()
-            # pid = open_file_as_process(path)
-            # if pid == -1:
-            #    self.infobox("Нет подходящего приложения для открытия данного файла")
-            #    return
-
-            # save_opened_process_data(pid)
-
-            # self._open(path)
-            """if self.checkIsApplication(path):
-                self._open(path)
-                # self.process.startDetached(path)
-            else:
-                self.open_file_qdesktopServices(path)"""
         else:
             self.treeview.setCurrentIndex(self.dirModel.index(path))
             self.treeview.setFocus()
             self.setWindowTitle(path)
-            # :(
-        # save_opened_dir(path)
-        # self.savePathToFile(path)
 
-    def goBack(self):
-        index = self.listview.selectionModel().currentIndex()
-        path = self.fileModel.fileInfo(index).path()
-        self.treeview.setCurrentIndex(self.dirModel.index(path))
+            with open('./log/log_visited.txt', "a") as f:
+                f.write(path+'\n')
 
     def goUp(self):
         index = self.treeview.selectionModel().currentIndex()
         path = self.dirModel.fileInfo(index).path()
 
-        # save_opened_dir(path)
-
         if path.find(self.root) >= 0:
             self.treeview.setCurrentIndex(self.dirModel.index(path))
+            with open('./log/log_visited.txt', "a") as f:
+                f.write(path + '\n')
         else:
             self.treeview.setCurrentIndex(self.dirModel.index(self.root))
+            with open('./log/log_visited.txt', "a") as f:
+                f.write(self.root + '\n')
+
 
     def goHome(self):
         docs = self.root + "/home"
@@ -581,15 +523,14 @@ class myWindow(QMainWindow):
 
     def getProcessList(self):
 
-        # def open():
-        import form
-        self.processes = QWidget()
-        ui = form.ProcWindow(self.processes, self.memcache)
-        self.processes.show()
+        def open():
+            import form
+            self.processes = QWidget()
+            ui = form.ProcWindow(self.processes, self.shmem_arr)
+            self.processes.show()
 
-    # t = threading.Thread(target=open)
-    # t.setDaemon(True)
-    # t.start()
+        my_thread = MyThread(open)
+        my_thread.start()
 
     def toggleRemovables(self):
         self.root, self.media = self.media, self.root
@@ -1013,9 +954,18 @@ padding-left: 2px; padding-right: 2px;
     """
 
 
+class MyThread(QThread):
+    def __init__(self, target):
+        super().__init__()
+        self.target = target
+
+    def start(self, priority=None):
+        self.target()
+
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    w = myWindow()
+    w = MainWindow()
     w.show()
     if len(sys.argv) > 1:
         path = sys.argv[1]
